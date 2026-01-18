@@ -1,12 +1,13 @@
 import React from "react";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+
 import MainTabNavigator from "@/navigation/MainTabNavigator";
-import ModalScreen from "@/screens/ModalScreen";
+import SOSScreen from "@/screens/SOSScreen";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 
 export type RootStackParamList = {
   Main: undefined;
-  Modal: undefined;
+  SOS: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -22,11 +23,12 @@ export default function RootStackNavigator() {
         options={{ headerShown: false }}
       />
       <Stack.Screen
-        name="Modal"
-        component={ModalScreen}
+        name="SOS"
+        component={SOSScreen}
         options={{
           presentation: "modal",
-          headerTitle: "Modal",
+          headerTitle: "Emergency",
+          headerTintColor: "#E53935",
         }}
       />
     </Stack.Navigator>
