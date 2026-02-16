@@ -15,15 +15,19 @@ import { useHeaderHeight } from "@react-navigation/elements";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 import { ThemedText } from "@/components/ThemedText";
 import { Button } from "@/components/Button";
 import { SegmentedControl } from "@/components/SegmentedControl";
 import { ConsultationCard } from "@/components/ConsultationCard";
+import { SpecialtyCard } from "@/components/SpecialtyCard";
 import { EmptyState } from "@/components/EmptyState";
 import { useTheme } from "@/hooks/useTheme";
 import { Spacing, Colors, BorderRadius, Shadows } from "@/constants/theme";
+import { SPECIALTIES, type Specialty } from "@/lib/doctors";
+import type { RootStackParamList } from "@/navigation/RootStackNavigator";
 import {
   getConsultations,
   addConsultation,
@@ -82,6 +86,12 @@ export default function ConsultancyScreen() {
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
   const { theme, isDark } = useTheme();
+  const rootNavigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+
+  const handleSpecialtyPress = (specialty: Specialty) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    rootNavigation.navigate("DoctorList", { specialtyName: specialty.name });
+  };
 
   const [selectedSegment, setSelectedSegment] = useState(0);
   const [consultations, setConsultations] = useState<Consultation[]>([]);
@@ -577,6 +587,32 @@ export default function ConsultancyScreen() {
         keyExtractor={() => "content"}
         renderItem={() => (
           <View>
+            <View style={styles.specialtiesSection}>
+              <ThemedText type="h4" style={styles.sectionTitle}>
+                Browse by Specialties
+              </ThemedText>
+              <ThemedText type="small" style={{ color: theme.textSecondary, marginBottom: Spacing.lg }}>
+                Find the right doctor for your needs
+              </ThemedText>
+              <View style={styles.specialtiesGrid}>
+                {SPECIALTIES.map((specialty) => (
+                  <SpecialtyCard
+                    key={specialty.id}
+                    specialty={specialty}
+                    onPress={handleSpecialtyPress}
+                  />
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.segmentContainer}>
+              <SegmentedControl
+                segments={["Book Appointment", "My Appointments"]}
+                selectedIndex={selectedSegment}
+                onSelect={setSelectedSegment}
+              />
+            </View>
+
             {selectedSegment === 0 ? renderBookingForm() : renderAppointments()}
           </View>
         )}
@@ -586,13 +622,6 @@ export default function ConsultancyScreen() {
             <ThemedText type="body" style={{ color: theme.textSecondary }}>
               Book a virtual appointment with our experts
             </ThemedText>
-            <View style={styles.segmentContainer}>
-              <SegmentedControl
-                segments={["Book Appointment", "My Appointments"]}
-                selectedIndex={selectedSegment}
-                onSelect={setSelectedSegment}
-              />
-            </View>
           </View>
         }
         showsVerticalScrollIndicator={false}
@@ -617,10 +646,21 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
+    marginBottom: Spacing.lg,
+  },
+  specialtiesSection: {
     marginBottom: Spacing.xl,
   },
+  sectionTitle: {
+    marginBottom: Spacing.xs,
+  },
+  specialtiesGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "space-between",
+  },
   segmentContainer: {
-    marginTop: Spacing.xl,
+    marginBottom: Spacing.lg,
   },
   fieldContainer: {
     marginBottom: Spacing.lg,
