@@ -11,6 +11,7 @@ import ForYouScreen from "@/screens/ForYouScreen";
 import ShopScreen from "@/screens/ShopScreen";
 import ReorderScreen from "@/screens/ReorderScreen";
 import ServicesScreen from "@/screens/ServicesScreen";
+import ConsultancyScreen from "@/screens/ConsultancyScreen";
 import { SOSButton } from "@/components/SOSButton";
 import { useTheme } from "@/hooks/useTheme";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
@@ -23,6 +24,7 @@ export type MainTabParamList = {
   Shop: undefined;
   Reorder: undefined;
   Services: undefined;
+  Consult: undefined;
 };
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -115,6 +117,16 @@ function TabContent() {
             headerShown: false,
             tabBarIcon: ({ color, size }) => (
               <Feather name="users" size={size} color={color} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Consult"
+          component={ConsultancyScreen}
+          options={{
+            headerShown: false,
+            tabBarIcon: ({ color, size }) => (
+              <Feather name="monitor" size={size} color={color} />
             ),
           }}
         />
