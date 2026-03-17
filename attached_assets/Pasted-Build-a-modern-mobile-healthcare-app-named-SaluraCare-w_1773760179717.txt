@@ -1,0 +1,134 @@
+Build a modern mobile healthcare app named "SaluraCare" with a clean teal and white UI theme similar to a wellness tracking app.
+
+IMPORTANT CHANGES:
+- Remove doctor consultancy feature completely
+- Remove medical equipment/shop section
+- Add Lab Test Panel
+- Add Vaccination Panel
+
+APP FEATURES:
+
+1. HOME DASHBOARD:
+- Greeting with user name
+- Daily Progress card (tasks completed %)
+- Water intake tracker with add button
+- Medicine reminder cards (mark as done)
+- Clean card-based UI with soft shadows
+
+2. FOR YOU SECTION:
+- Personalized health content feed
+- Cards for:
+  - Health Articles
+  - Health Tips
+- Each card has title, short description, and "Read more"
+
+3. LAB TEST PANEL (NEW):
+- List of available lab tests (Blood Test, Sugar Test, Thyroid, etc.)
+- Search bar for tests
+- Each test card includes:
+  - Test name
+  - Price
+  - Short description
+  - "Book Test" button
+- Booking system with:
+  - Date selection
+  - Time slot
+  - Address input
+- Store bookings in backend database
+
+4. VACCINATION PANEL (NEW):
+- List of vaccines (Covid, Flu, Hepatitis, etc.)
+- Show:
+  - Vaccine name
+  - Recommended age
+  - Description
+- "Book Vaccination" button
+- Vaccination schedule tracker
+- Reminder system for upcoming doses
+
+5. SERVICES SECTION (MODIFIED):
+- Keep only:
+  - Home Nurse
+  - Caretaker
+  - Physiotherapist
+- Remove doctor consultation completely
+- Each provider card shows:
+  - Name
+  - Experience
+  - Rating
+  - Availability
+  - Book button
+
+6. EMERGENCY SOS:
+- Big red SOS button for ambulance request
+- Emergency contacts list
+- One-tap calling feature
+
+---
+
+BACKEND REQUIREMENTS:
+
+Use Node.js + Express + MongoDB
+
+Create APIs:
+
+AUTH:
+- Register user
+- Login user (JWT authentication)
+
+USER:
+- Get user profile
+- Update profile
+
+MEDICINE REMINDERS:
+- Add reminder
+- Mark as completed
+- Get all reminders
+
+LAB TEST:
+- Get all lab tests
+- Book lab test
+- Get user bookings
+
+VACCINATION:
+- Get vaccines list
+- Book vaccination
+- Track vaccination schedule
+
+SERVICES:
+- Get providers list
+- Book service
+
+EMERGENCY:
+- Save emergency contacts
+
+DATABASE MODELS:
+- User
+- LabTest
+- LabBooking
+- Vaccine
+- VaccineBooking
+- ServiceProvider
+- ServiceBooking
+- Reminder
+
+---
+
+FRONTEND:
+- React Native (or Flutter if preferred)
+- Bottom navigation:
+  Home | For You | Lab Tests | Vaccination | Services | Emergency
+- Smooth animations
+- Card-based layout
+- Floating action button for quick actions
+
+---
+
+EXTRA:
+- Add notification system for:
+  - Medicine reminders
+  - Vaccination dates
+  - Lab test bookings
+
+- Clean and minimal UI (no clutter)
+- Soft rounded cards and pastel colors
