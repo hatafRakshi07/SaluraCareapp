@@ -8,7 +8,10 @@ import {
   TextInput,
   Modal,
   Platform,
+  Alert,
 } from "react-native";
+import { createPaymentIntent } from "@/lib/auth";
+import { useAuth } from "@/context/AuthContext";
 import { useBottomTabBarHeight } from "@react-navigation/bottom-tabs";
 import { useHeaderHeight } from "@react-navigation/elements";
 import { Feather } from "@expo/vector-icons";
@@ -120,7 +123,7 @@ function BookingModal({
   visible: boolean;
   test: LabTest | null;
   onClose: () => void;
-  onConfirm: () => void;
+  onConfirm: (date: string, time: string, address: string) => void;
 }) {
   const { theme, isDark } = useTheme();
   const [selectedDate, setSelectedDate] = useState(0);
@@ -145,7 +148,8 @@ function BookingModal({
   const handleConfirm = () => {
     if (!selectedTime || !address.trim()) return;
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    onConfirm();
+    const dateStr = dates[selectedDate]?.full ?? new Date().toDateString();
+    onConfirm(dateStr, selectedTime, address);
     setSelectedDate(0);
     setSelectedTime("");
     setAddress("");
@@ -302,12 +306,14 @@ export default function LabTestScreen() {
   const headerHeight = useHeaderHeight();
   const tabBarHeight = useBottomTabBarHeight();
   const { theme } = useTheme();
+  const { token } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [bookingTest, setBookingTest] = useState<LabTest | null>(null);
   const [showBooking, setShowBooking] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [isBooking, setIsBooking] = useState(false);
 
   const filteredTests = useMemo(() => {
     return LAB_TESTS.filter((t) => {
@@ -325,7 +331,26 @@ export default function LabTestScreen() {
     setShowBooking(true);
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async (date: string, time: string, address: string) => {
+    if (!bookingTest || isBooking) return;
+    setIsBooking(true);
+    try {
+      await createPaymentIntent(
+        {
+          serviceType: "lab_test",
+          serviceName: bookingTest.name,
+          amount: bookingTest.price,
+          scheduledDate: date,
+          scheduledTime: time,
+          address,
+        },
+        token ?? ""
+      );
+    } catch (e) {
+      console.warn("Booking API error:", e);
+    } finally {
+      setIsBooking(false);
+    }
     setShowBooking(false);
     setShowSuccess(true);
   };
