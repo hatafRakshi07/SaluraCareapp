@@ -1,6 +1,7 @@
 import express from "express";
 import type { Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
+import { WebhookHandlers } from "./webhookHandlers";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -40,7 +41,7 @@ function setupCors(app: express.Application) {
         "Access-Control-Allow-Methods",
         "GET, POST, PUT, DELETE, OPTIONS",
       );
-      res.header("Access-Control-Allow-Headers", "Content-Type");
+      res.header("Access-Control-Allow-Headers", "Content-Type, Authorization");
       res.header("Access-Control-Allow-Credentials", "true");
     }
 
@@ -227,6 +228,25 @@ function setupErrorHandler(app: express.Application) {
 
 (async () => {
   setupCors(app);
+
+  // Stripe webhook must be registered BEFORE body parsing (needs raw Buffer)
+  app.post(
+    "/api/stripe/webhook",
+    express.raw({ type: "application/json" }),
+    async (req: Request, res: Response) => {
+      const signature = req.headers["stripe-signature"];
+      if (!signature) return res.status(400).json({ error: "Missing stripe-signature" });
+      try {
+        const sig = Array.isArray(signature) ? signature[0] : signature;
+        await WebhookHandlers.processWebhook(req.body as Buffer, sig);
+        res.status(200).json({ received: true });
+      } catch (err: any) {
+        console.error("Webhook error:", err.message);
+        res.status(400).json({ error: "Webhook processing error" });
+      }
+    }
+  );
+
   setupBodyParsing(app);
   setupRequestLogging(app);
 

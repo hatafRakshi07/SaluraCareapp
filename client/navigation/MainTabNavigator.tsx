@@ -10,6 +10,7 @@ import LabTestScreen from "@/screens/LabTestScreen";
 import VaccinationScreen from "@/screens/VaccinationScreen";
 import ServicesScreen from "@/screens/ServicesScreen";
 import EmergencyScreen from "@/screens/EmergencyScreen";
+import ProfileScreen from "@/screens/ProfileScreen";
 import { useTheme } from "@/hooks/useTheme";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 import { HeaderTitle } from "@/components/HeaderTitle";
@@ -22,6 +23,7 @@ export type MainTabParamList = {
   Vaccination: undefined;
   Services: undefined;
   Emergency: undefined;
+  Profile: undefined;
 };
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
@@ -122,6 +124,16 @@ export default function MainTabNavigator() {
             tabBarActiveTintColor: Colors.light.error,
             tabBarIcon: ({ color, size }) => (
               <Feather name="phone-call" size={size} color={color} />
+            ),
+          }}
+        />
+        <Tab.Screen
+          name="Profile"
+          component={ProfileScreen}
+          options={{
+            headerTitle: "My Profile",
+            tabBarIcon: ({ color, size }) => (
+              <Feather name="user" size={size} color={color} />
             ),
           }}
         />
