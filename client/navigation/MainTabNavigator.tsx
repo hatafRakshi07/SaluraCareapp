@@ -3,45 +3,37 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Feather } from "@expo/vector-icons";
 import { BlurView } from "expo-blur";
 import { Platform, StyleSheet, View } from "react-native";
-import { useNavigation } from "@react-navigation/native";
-import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 
 import CoachScreen from "@/screens/CoachScreen";
 import ForYouScreen from "@/screens/ForYouScreen";
-import ShopScreen from "@/screens/ShopScreen";
-import ReorderScreen from "@/screens/ReorderScreen";
+import LabTestScreen from "@/screens/LabTestScreen";
+import VaccinationScreen from "@/screens/VaccinationScreen";
 import ServicesScreen from "@/screens/ServicesScreen";
-import ConsultancyScreen from "@/screens/ConsultancyScreen";
-import { SOSButton } from "@/components/SOSButton";
+import EmergencyScreen from "@/screens/EmergencyScreen";
 import { useTheme } from "@/hooks/useTheme";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
 import { HeaderTitle } from "@/components/HeaderTitle";
-import { RootStackParamList } from "@/navigation/RootStackNavigator";
+import { Colors } from "@/constants/theme";
 
 export type MainTabParamList = {
-  Coach: undefined;
+  Home: undefined;
   ForYou: undefined;
-  Shop: undefined;
-  Reorder: undefined;
+  LabTests: undefined;
+  Vaccination: undefined;
   Services: undefined;
-  Consult: undefined;
+  Emergency: undefined;
 };
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
-function TabContent() {
+export default function MainTabNavigator() {
   const { theme, isDark } = useTheme();
   const screenOptions = useScreenOptions();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-
-  const handleSOSPress = () => {
-    navigation.navigate("SOS");
-  };
 
   return (
     <View style={styles.container}>
       <Tab.Navigator
-        initialRouteName="Coach"
+        initialRouteName="Home"
         screenOptions={{
           ...screenOptions,
           tabBarActiveTintColor: theme.tabIconSelected,
@@ -64,13 +56,13 @@ function TabContent() {
               />
             ) : null,
           tabBarLabelStyle: {
-            fontSize: 11,
+            fontSize: 10,
             fontWeight: "500",
           },
         }}
       >
         <Tab.Screen
-          name="Coach"
+          name="Home"
           component={CoachScreen}
           options={{
             headerTitle: () => <HeaderTitle title="SaluraCare" />,
@@ -91,22 +83,24 @@ function TabContent() {
           }}
         />
         <Tab.Screen
-          name="Shop"
-          component={ShopScreen}
+          name="LabTests"
+          component={LabTestScreen}
           options={{
+            title: "Lab Tests",
             headerShown: false,
             tabBarIcon: ({ color, size }) => (
-              <Feather name="shopping-bag" size={size} color={color} />
+              <Feather name="activity" size={size} color={color} />
             ),
           }}
         />
         <Tab.Screen
-          name="Reorder"
-          component={ReorderScreen}
+          name="Vaccination"
+          component={VaccinationScreen}
           options={{
+            title: "Vaccines",
             headerShown: false,
             tabBarIcon: ({ color, size }) => (
-              <Feather name="rotate-ccw" size={size} color={color} />
+              <Feather name="shield" size={size} color={color} />
             ),
           }}
         />
@@ -121,27 +115,21 @@ function TabContent() {
           }}
         />
         <Tab.Screen
-          name="Consult"
-          component={ConsultancyScreen}
+          name="Emergency"
+          component={EmergencyScreen}
           options={{
             headerShown: false,
+            tabBarActiveTintColor: Colors.light.error,
             tabBarIcon: ({ color, size }) => (
-              <Feather name="monitor" size={size} color={color} />
+              <Feather name="phone-call" size={size} color={color} />
             ),
           }}
         />
       </Tab.Navigator>
-      <SOSButton onPress={handleSOSPress} />
     </View>
   );
 }
 
-export default function MainTabNavigator() {
-  return <TabContent />;
-}
-
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
+  container: { flex: 1 },
 });

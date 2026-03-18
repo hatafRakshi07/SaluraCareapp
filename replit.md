@@ -1,7 +1,7 @@
 # SaluraCare
 
 ## Overview
-SaluraCare is a healthcare and emergency assistance mobile application built with React Native (Expo) and Express.js. It provides daily health tracking, medical supplies shopping, healthcare professional booking, and emergency SOS features.
+SaluraCare is a healthcare and emergency assistance mobile application built with React Native (Expo) and Express.js. It provides daily health tracking, lab test booking, vaccination scheduling, healthcare professional booking, and emergency SOS features.
 
 ## Project Architecture
 
@@ -17,32 +17,32 @@ SaluraCare is a healthcare and emergency assistance mobile application built wit
 
 ### Navigation Structure
 - **Bottom Tab Navigator** (6 tabs):
-  1. Coach - Daily health tracking (water intake, medicine reminders)
+  1. Home - Daily health tracking (water intake, medicine reminders)
   2. For You - Personalized health recommendations
-  3. Shop - Medical supplies e-commerce (SaluraMart)
-  4. Reorder - Order history and medical reports
-  5. Services - Book healthcare professionals
-  6. Consult - Online consultancy with specialty browsing
+  3. Lab Tests - Browse and book home sample collection lab tests
+  4. Vaccination - Browse vaccines and schedule vaccination appointments
+  5. Services - Book healthcare professionals (Home Nurse, Caretaker, Physiotherapist)
+  6. Emergency - SOS ambulance request + emergency contacts with one-tap calling
 
 - **Stack Screens** (outside tabs):
-  - SOS - Emergency modal for ambulance request
-  - DoctorList - Doctors filtered by specialty with booking flow
+  - SOS - Legacy emergency modal (accessible for deep linking)
 
 - **Global Features**:
-  - Floating SOS button on all screens
-  - Emergency modal for ambulance request
+  - Emergency tab with pulsing SOS button
+  - One-tap emergency contact calling
 
 ### Key Components
-- `SOSButton` - Floating emergency button with pulse animation
+- `SOSButton` - Floating emergency button (legacy, kept for modal use)
 - `HealthCard` - Gradient cards for health tracking
 - `MedicineCard` - Medicine reminder cards with take action
-- `ProductCard` - Shop product cards with add to cart
 - `ServiceProviderCard` - Healthcare provider booking cards
-- `OrderCard` - Order history with reorder functionality
-- `ReportCard` - Medical reports with download/share
-- `SpecialtyCard` - Browse by specialties grid card with icon
-- `DoctorCard` - Doctor profile card with booking button
-- `ConsultationCard` - Booked appointment card with cancel action
+- `SearchBar` - Reusable search input with filter button
+- `CategoryChip` - Filter chip for category selection
+- `EmptyState` - Empty state illustration component
+
+### Data Libraries
+- `client/lib/labTests.ts` - 12 lab tests with pricing, descriptions, time slots
+- `client/lib/vaccines.ts` - 10 vaccines with recommended age, dose schedule
 
 ### Design System
 - **Primary Color**: Teal (#00B5A5)
@@ -53,18 +53,17 @@ SaluraCare is a healthcare and emergency assistance mobile application built wit
 
 ## Recent Changes
 - Initial app creation with all core screens
-- Implemented 6-tab navigation structure
-- Created reusable healthcare-focused components
-- Added floating SOS button with emergency modal
-- Generated app icon and empty state illustrations
-- Added Online Consultancy module with appointment booking form
-- Added "Browse by Specialties" section (18 medical specialties)
-- Created DoctorListScreen with doctor cards filtered by specialty
-- Implemented booking flow from specialty -> doctor -> appointment form
-- Data stored in AsyncStorage (lib/consultations.ts, lib/doctors.ts)
+- Implemented 6-tab navigation structure: Home, For You, Lab Tests, Vaccination, Services, Emergency
+- Removed: Shop, Reorder, Consult tabs; DoctorList screen; doctor/consultation data
+- Added Lab Test Panel: 12 tests across 6 categories, search, home sample collection booking
+- Added Vaccination Panel: 10 vaccines with dose scheduling, category filter, booking flow
+- Added Emergency tab: animated SOS button, emergency contacts list, add/call/delete contacts
+- Services: Home Nurse, Caretaker, Physiotherapist only
+- Data stored in AsyncStorage / local state (MVP)
 
 ## Development Notes
-- The app uses AsyncStorage for local data persistence (MVP)
-- All screens have proper safe area handling
-- Empty states use generated illustrations
+- The app uses local state for data persistence (MVP)
+- All screens have proper safe area handling with transparent tab bar
+- Empty states and loading states handled throughout
 - Haptic feedback on key interactions
+- Animated press effects on all interactive cards
