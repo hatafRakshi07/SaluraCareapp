@@ -11,6 +11,40 @@ export interface AuthUser {
   isPremium: boolean | null;
 }
 
+// ─── Global 401 handler ──────────────────────────────────────────────────────
+// AuthContext registers this so any 401 from any API call auto-logs the user out
+let _onUnauthorized: (() => void) | null = null;
+
+export function setUnauthorizedHandler(handler: () => void) {
+  _onUnauthorized = handler;
+}
+
+export function clearUnauthorizedHandler() {
+  _onUnauthorized = null;
+}
+
+// ─── JWT helpers (no library needed) ─────────────────────────────────────────
+export function getTokenExpiry(token: string): number | null {
+  try {
+    const base64Payload = token.split(".")[1];
+    if (!base64Payload) return null;
+    // atob available in React Native (Hermes) and web
+    const json = atob(base64Payload.replace(/-/g, "+").replace(/_/g, "/"));
+    const payload = JSON.parse(json);
+    return typeof payload.exp === "number" ? payload.exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
+export function isTokenExpired(token: string): boolean {
+  const expiry = getTokenExpiry(token);
+  if (!expiry) return false;
+  // Consider expired 60 s before actual expiry to avoid edge cases
+  return Date.now() > expiry - 60_000;
+}
+
+// ─── Storage ─────────────────────────────────────────────────────────────────
 export async function getStoredToken(): Promise<string | null> {
   return AsyncStorage.getItem(TOKEN_KEY);
 }
@@ -39,6 +73,7 @@ export async function getStoredUser(): Promise<AuthUser | null> {
   }
 }
 
+// ─── Core fetch wrapper ───────────────────────────────────────────────────────
 async function apiRequest(path: string, options: RequestInit = {}): Promise<Response> {
   const token = await getStoredToken();
   const headers: Record<string, string> = {
@@ -46,10 +81,23 @@ async function apiRequest(path: string, options: RequestInit = {}): Promise<Resp
     ...(options.headers as Record<string, string>),
   };
   if (token) headers["Authorization"] = `Bearer ${token}`;
-  return fetch(new URL(path, getApiUrl()).toString(), { ...options, headers });
+
+  const res = await fetch(new URL(path, getApiUrl()).toString(), { ...options, headers });
+
+  // Auto-logout on 401 anywhere in the app
+  if (res.status === 401 && _onUnauthorized) {
+    _onUnauthorized();
+  }
+
+  return res;
 }
 
-export async function registerUser(email: string, name: string, password: string): Promise<{ token: string; user: AuthUser }> {
+// ─── Auth endpoints ───────────────────────────────────────────────────────────
+export async function registerUser(
+  email: string,
+  name: string,
+  password: string
+): Promise<{ token: string; user: AuthUser }> {
   const res = await apiRequest("/api/auth/register", {
     method: "POST",
     body: JSON.stringify({ email, name, password }),
@@ -59,7 +107,10 @@ export async function registerUser(email: string, name: string, password: string
   return data;
 }
 
-export async function loginUser(email: string, password: string): Promise<{ token: string; user: AuthUser }> {
+export async function loginUser(
+  email: string,
+  password: string
+): Promise<{ token: string; user: AuthUser }> {
   const res = await apiRequest("/api/auth/login", {
     method: "POST",
     body: JSON.stringify({ email, password }),
@@ -76,15 +127,18 @@ export async function fetchCurrentUser(): Promise<AuthUser> {
   return data.user;
 }
 
-export async function createPaymentIntent(params: {
-  itemId: string;
-  itemName: string;
-  type: string;
-  amount: number;
-  scheduledDate?: string;
-  scheduledTime?: string;
-  address?: string;
-}): Promise<{ clientSecret?: string; bookingId: string; paymentIntentId?: string; demo?: boolean }> {
+// ─── Payment / booking endpoints ──────────────────────────────────────────────
+export async function createPaymentIntent(
+  params: {
+    serviceType?: string;
+    serviceName?: string;
+    amount: number;
+    scheduledDate?: string;
+    scheduledTime?: string;
+    address?: string;
+  },
+  _token?: string
+): Promise<{ clientSecret?: string; bookingId: string; paymentIntentId?: string; demo?: boolean }> {
   const res = await apiRequest("/api/payments/create-intent", {
     method: "POST",
     body: JSON.stringify(params),
