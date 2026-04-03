@@ -1,9 +1,9 @@
 import React, {
   createContext,
   useContext,
-  useState,
   useEffect,
   useRef,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { AppState, type AppStateStatus } from "react-native";
@@ -20,10 +20,34 @@ import {
   type AuthUser,
 } from "../lib/auth";
 
-interface AuthContextType {
+// ─── Module-level auth store ──────────────────────────────────────────────────
+// Bypasses React Compiler memoization by using useSyncExternalStore.
+
+interface AuthState {
   user: AuthUser | null;
   token: string | null;
   isLoading: boolean;
+}
+
+let _state: AuthState = { user: null, token: null, isLoading: true };
+const _listeners = new Set<() => void>();
+
+function getSnapshot(): AuthState {
+  return _state;
+}
+
+function subscribe(listener: () => void): () => void {
+  _listeners.add(listener);
+  return () => _listeners.delete(listener);
+}
+
+function setState(partial: Partial<AuthState>) {
+  _state = { ..._state, ...partial };
+  _listeners.forEach((l) => l());
+}
+
+// ─── AuthContext (functions only — state is in the external store) ────────────
+interface AuthContextType {
   login: (token: string, user: AuthUser) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (user: AuthUser) => void;
@@ -33,14 +57,9 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const expiryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Keep a ref so AppState handler always sees the latest token
   const tokenRef = useRef<string | null>(null);
 
-  // ─── Clear any running expiry timer ───────────────────────────────────────
   const clearExpiryTimer = () => {
     if (expiryTimerRef.current) {
       clearTimeout(expiryTimerRef.current);
@@ -48,7 +67,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // ─── Schedule auto-logout when JWT expires ────────────────────────────────
   const scheduleExpiryLogout = (tok: string, onExpire: () => void) => {
     clearExpiryTimer();
     const expiry = getTokenExpiry(tok);
@@ -61,33 +79,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     expiryTimerRef.current = setTimeout(onExpire, msUntilExpiry);
   };
 
-  // ─── Logout ───────────────────────────────────────────────────────────────
   const logout = async () => {
     clearExpiryTimer();
     await clearAuth();
     tokenRef.current = null;
-    setToken(null);
-    setUser(null);
+    setState({ user: null, token: null });
   };
 
-  // ─── Login ────────────────────────────────────────────────────────────────
   const login = async (newToken: string, newUser: AuthUser) => {
     await storeAuth(newToken, newUser);
     tokenRef.current = newToken;
-    setToken(newToken);
-    setUser(newUser);
+    setState({ user: newUser, token: newToken });
     scheduleExpiryLogout(newToken, logout);
   };
 
-  // ─── Update user in state + storage ──────────────────────────────────────
   const updateUser = (updatedUser: AuthUser) => {
-    setUser(updatedUser);
+    setState({ user: updatedUser });
     const tok = tokenRef.current;
     if (tok) storeAuth(tok, updatedUser).catch(() => {});
   };
 
-  // ─── Silently validate session with server ────────────────────────────────
-  // Only clears session on definitive auth error — not network failures.
   const verifyAndRefresh = async (tok: string): Promise<void> => {
     if (isTokenExpired(tok)) {
       await logout();
@@ -95,7 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     try {
       const freshUser = await fetchCurrentUser();
-      setUser(freshUser);
+      setState({ user: freshUser });
       await storeAuth(tok, freshUser);
     } catch (err: any) {
       const msg = String(err?.message ?? "");
@@ -106,18 +117,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       ) {
         await logout();
       }
-      // Network/server errors → stay logged in
     }
   };
 
-  // ─── Refresh user profile (callable from screens) ────────────────────────
   const refreshUser = async () => {
     const tok = tokenRef.current;
     if (!tok) return;
     await verifyAndRefresh(tok);
   };
 
-  // ─── Bootstrap: load & show session instantly, validate in background ────
   useEffect(() => {
     (async () => {
       try {
@@ -126,38 +134,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const storedUser = await getStoredUser();
           if (storedUser) {
             tokenRef.current = storedToken;
-            setToken(storedToken);
-            setUser(storedUser);
+            setState({ user: storedUser, token: storedToken, isLoading: false });
             scheduleExpiryLogout(storedToken, logout);
+          } else {
+            setState({ isLoading: false });
           }
-          setIsLoading(false);
-          // Background validation — won't block the UI
           verifyAndRefresh(storedToken);
           return;
         }
       } catch {
         // ignore storage errors
       }
-      setIsLoading(false);
+      setState({ isLoading: false });
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ─── Register global 401 handler ─────────────────────────────────────────
   useEffect(() => {
     setUnauthorizedHandler(() => {
-      // Can't call async logout directly in a sync callback; clear state manually
       clearExpiryTimer();
       clearAuth().catch(() => {});
       tokenRef.current = null;
-      setToken(null);
-      setUser(null);
+      setState({ user: null, token: null });
     });
     return () => clearUnauthorizedHandler();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ─── AppState: re-validate when app comes to foreground ──────────────────
   useEffect(() => {
     const handleAppStateChange = (nextState: AppStateStatus) => {
       if (nextState === "active" && tokenRef.current) {
@@ -170,16 +173,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider
-      value={{ user, token, isLoading, login, logout, updateUser, refreshUser }}
-    >
+    <AuthContext.Provider value={{ login, logout, updateUser, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
+// ─── useAuth: reads from the external store (bypasses React Compiler) ─────────
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  return ctx;
+  const state = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
+  return { ...state, ...ctx };
 }
