@@ -3,7 +3,7 @@ import React, {
   useContext,
   useEffect,
   useRef,
-  useSyncExternalStore,
+  useState,
   type ReactNode,
 } from "react";
 import { AppState, type AppStateStatus } from "react-native";
@@ -20,34 +20,10 @@ import {
   type AuthUser,
 } from "../lib/auth";
 
-// ─── Module-level auth store ──────────────────────────────────────────────────
-// Bypasses React Compiler memoization by using useSyncExternalStore.
-
-interface AuthState {
+interface AuthContextType {
   user: AuthUser | null;
   token: string | null;
   isLoading: boolean;
-}
-
-let _state: AuthState = { user: null, token: null, isLoading: true };
-const _listeners = new Set<() => void>();
-
-function getSnapshot(): AuthState {
-  return _state;
-}
-
-function subscribe(listener: () => void): () => void {
-  _listeners.add(listener);
-  return () => _listeners.delete(listener);
-}
-
-function setState(partial: Partial<AuthState>) {
-  _state = { ..._state, ...partial };
-  _listeners.forEach((l) => l());
-}
-
-// ─── AuthContext (functions only — state is in the external store) ────────────
-interface AuthContextType {
   login: (token: string, user: AuthUser) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (user: AuthUser) => void;
@@ -57,8 +33,12 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const expiryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [user, setUser] = useState<AuthUser | null>(null);
+  const [token, setToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
   const tokenRef = useRef<string | null>(null);
+  const expiryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearExpiryTimer = () => {
     if (expiryTimerRef.current) {
@@ -67,34 +47,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const scheduleExpiryLogout = (tok: string, onExpire: () => void) => {
+  const logout = async () => {
+    clearExpiryTimer();
+    await clearAuth();
+    tokenRef.current = null;
+    setToken(null);
+    setUser(null);
+  };
+
+  const scheduleExpiryLogout = (tok: string) => {
     clearExpiryTimer();
     const expiry = getTokenExpiry(tok);
     if (!expiry) return;
     const msUntilExpiry = expiry - Date.now() - 60_000;
     if (msUntilExpiry <= 0) {
-      onExpire();
+      logout();
       return;
     }
-    expiryTimerRef.current = setTimeout(onExpire, msUntilExpiry);
-  };
-
-  const logout = async () => {
-    clearExpiryTimer();
-    await clearAuth();
-    tokenRef.current = null;
-    setState({ user: null, token: null });
+    expiryTimerRef.current = setTimeout(logout, msUntilExpiry);
   };
 
   const login = async (newToken: string, newUser: AuthUser) => {
+    console.log("[Auth] login called for:", newUser.email);
     await storeAuth(newToken, newUser);
     tokenRef.current = newToken;
-    setState({ user: newUser, token: newToken });
-    scheduleExpiryLogout(newToken, logout);
+    setToken(newToken);
+    setUser(newUser);
+    scheduleExpiryLogout(newToken);
+    console.log("[Auth] login complete, user set:", newUser.email);
   };
 
   const updateUser = (updatedUser: AuthUser) => {
-    setState({ user: updatedUser });
+    setUser(updatedUser);
     const tok = tokenRef.current;
     if (tok) storeAuth(tok, updatedUser).catch(() => {});
   };
@@ -106,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     try {
       const freshUser = await fetchCurrentUser();
-      setState({ user: freshUser });
+      setUser(freshUser);
       await storeAuth(tok, freshUser);
     } catch (err: any) {
       const msg = String(err?.message ?? "");
@@ -134,18 +118,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const storedUser = await getStoredUser();
           if (storedUser) {
             tokenRef.current = storedToken;
-            setState({ user: storedUser, token: storedToken, isLoading: false });
-            scheduleExpiryLogout(storedToken, logout);
-          } else {
-            setState({ isLoading: false });
+            setToken(storedToken);
+            setUser(storedUser);
+            scheduleExpiryLogout(storedToken);
+            setIsLoading(false);
+            verifyAndRefresh(storedToken);
+            return;
           }
-          verifyAndRefresh(storedToken);
-          return;
         }
       } catch {
         // ignore storage errors
       }
-      setState({ isLoading: false });
+      setIsLoading(false);
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -155,7 +139,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearExpiryTimer();
       clearAuth().catch(() => {});
       tokenRef.current = null;
-      setState({ user: null, token: null });
+      setToken(null);
+      setUser(null);
     });
     return () => clearUnauthorizedHandler();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -173,16 +158,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ login, logout, updateUser, refreshUser }}>
+    <AuthContext.Provider value={{ user, token, isLoading, login, logout, updateUser, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
-// ─── useAuth: reads from the external store (bypasses React Compiler) ─────────
 export function useAuth() {
   const ctx = useContext(AuthContext);
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
-  const state = useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
-  return { ...state, ...ctx };
+  return ctx;
 }

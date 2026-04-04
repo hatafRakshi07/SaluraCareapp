@@ -12,7 +12,6 @@ import ServicesScreen from "@/screens/ServicesScreen";
 import EmergencyScreen from "@/screens/EmergencyScreen";
 import ProfileScreen from "@/screens/ProfileScreen";
 import { useTheme } from "@/hooks/useTheme";
-import { useScreenOptions } from "@/hooks/useScreenOptions";
 import { HeaderTitle } from "@/components/HeaderTitle";
 import { Colors } from "@/constants/theme";
 
@@ -30,14 +29,21 @@ const Tab = createBottomTabNavigator<MainTabParamList>();
 
 export default function MainTabNavigator() {
   const { theme, isDark } = useTheme();
-  const screenOptions = useScreenOptions();
 
   return (
     <View style={styles.container}>
       <Tab.Navigator
         initialRouteName="Home"
         screenOptions={{
-          ...screenOptions,
+          headerTitleAlign: "center",
+          headerTintColor: theme.text,
+          headerStyle: {
+            backgroundColor: Platform.select({
+              ios: undefined,
+              android: theme.backgroundRoot,
+              web: theme.backgroundRoot,
+            }),
+          },
           tabBarActiveTintColor: theme.tabIconSelected,
           tabBarInactiveTintColor: theme.tabIconDefault,
           tabBarStyle: {
