@@ -201,3 +201,7 @@ export function useAuth() {
   if (!ctx) throw new Error("useAuth must be used within AuthProvider");
   return ctx;
 }
+
+// Direct store hook — bypasses React context propagation entirely.
+// Use when context updates aren't propagating through NavigationContainer.
+export { useAuthStore };

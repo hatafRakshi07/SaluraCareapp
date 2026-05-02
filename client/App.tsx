@@ -11,11 +11,10 @@ import { queryClient } from "@/lib/query-client";
 
 import RootStackNavigator from "@/navigation/RootStackNavigator";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
-import { AuthProvider, useAuth } from "@/context/AuthContext";
+import { AuthProvider, useAuthStore } from "@/context/AuthContext";
 
 function AppNavigator() {
-  const { user, isLoading } = useAuth();
-  console.log("[AppNavigator] render user=", user?.email ?? null);
+  const { user, isLoading } = useAuthStore();
   return (
     <GestureHandlerRootView style={styles.root}>
       <KeyboardProvider>
