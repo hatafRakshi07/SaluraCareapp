@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { View, ActivityIndicator } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
@@ -7,21 +7,24 @@ import SOSScreen from "@/screens/SOSScreen";
 import LoginScreen from "@/screens/LoginScreen";
 import RegisterScreen from "@/screens/RegisterScreen";
 import { useScreenOptions } from "@/hooks/useScreenOptions";
-import { useAuth } from "@/context/AuthContext";
 import { useTheme } from "@/hooks/useTheme";
+import type { RootStackParamList } from "@/navigation/types";
+import type { AuthUser } from "@/lib/auth";
 
-export type RootStackParamList = {
-  Main: undefined;
-  SOS: undefined;
-};
+export type { RootStackParamList };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-export default function RootStackNavigator() {
+interface Props {
+  user: AuthUser | null;
+  isLoading: boolean;
+}
+
+export default function RootStackNavigator({ user, isLoading }: Props) {
   const screenOptions = useScreenOptions();
-  const { user, isLoading } = useAuth();
   const { theme } = useTheme();
-  const [showRegister, setShowRegister] = useState(false);
+
+  console.log("[RootNav] render user=", user?.email ?? null, "isLoading=", isLoading);
 
   if (isLoading) {
     return (
@@ -31,29 +34,39 @@ export default function RootStackNavigator() {
     );
   }
 
-  if (!user) {
-    if (showRegister) {
-      return <RegisterScreen onGoToLogin={() => setShowRegister(false)} />;
-    }
-    return <LoginScreen onGoToRegister={() => setShowRegister(true)} />;
-  }
-
   return (
     <Stack.Navigator screenOptions={screenOptions}>
-      <Stack.Screen
-        name="Main"
-        component={MainTabNavigator}
-        options={{ headerShown: false }}
-      />
-      <Stack.Screen
-        name="SOS"
-        component={SOSScreen}
-        options={{
-          presentation: "modal",
-          headerTitle: "Emergency",
-          headerTintColor: "#E53935",
-        }}
-      />
+      {user ? (
+        <>
+          <Stack.Screen
+            name="Main"
+            component={MainTabNavigator}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="SOS"
+            component={SOSScreen}
+            options={{
+              presentation: "modal",
+              headerTitle: "Emergency",
+              headerTintColor: "#E53935",
+            }}
+          />
+        </>
+      ) : (
+        <>
+          <Stack.Screen
+            name="Login"
+            component={LoginScreen}
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="Register"
+            component={RegisterScreen}
+            options={{ headerShown: false }}
+          />
+        </>
+      )}
     </Stack.Navigator>
   );
 }

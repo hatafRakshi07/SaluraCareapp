@@ -23,12 +23,16 @@ export function clearUnauthorizedHandler() {
   _onUnauthorized = null;
 }
 
+// ─── In-memory token cache ────────────────────────────────────────────────────
+// Keeps the active token in memory so API calls work even when storage is
+// unavailable (e.g. iframe contexts where localStorage may be blocked).
+let _memToken: string | null = null;
+
 // ─── JWT helpers (no library needed) ─────────────────────────────────────────
 export function getTokenExpiry(token: string): number | null {
   try {
     const base64Payload = token.split(".")[1];
     if (!base64Payload) return null;
-    // atob available in React Native (Hermes) and web
     const json = atob(base64Payload.replace(/-/g, "+").replace(/_/g, "/"));
     const payload = JSON.parse(json);
     return typeof payload.exp === "number" ? payload.exp * 1000 : null;
@@ -40,16 +44,17 @@ export function getTokenExpiry(token: string): number | null {
 export function isTokenExpired(token: string): boolean {
   const expiry = getTokenExpiry(token);
   if (!expiry) return false;
-  // Consider expired 60 s before actual expiry to avoid edge cases
   return Date.now() > expiry - 60_000;
 }
 
 // ─── Storage ─────────────────────────────────────────────────────────────────
 export async function getStoredToken(): Promise<string | null> {
+  if (_memToken !== null) return _memToken;
   return AsyncStorage.getItem(TOKEN_KEY);
 }
 
 export async function storeAuth(token: string, user: AuthUser): Promise<void> {
+  _memToken = token;
   await Promise.all([
     AsyncStorage.setItem(TOKEN_KEY, token),
     AsyncStorage.setItem(USER_KEY, JSON.stringify(user)),
@@ -57,6 +62,7 @@ export async function storeAuth(token: string, user: AuthUser): Promise<void> {
 }
 
 export async function clearAuth(): Promise<void> {
+  _memToken = null;
   await Promise.all([
     AsyncStorage.removeItem(TOKEN_KEY),
     AsyncStorage.removeItem(USER_KEY),

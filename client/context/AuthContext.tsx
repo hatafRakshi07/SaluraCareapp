@@ -68,13 +68,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const login = async (newToken: string, newUser: AuthUser) => {
-    console.log("[Auth] login called for:", newUser.email);
-    await storeAuth(newToken, newUser);
+    console.log("[AuthContext.login] called, user=", newUser?.email);
     tokenRef.current = newToken;
+    try {
+      await storeAuth(newToken, newUser);
+    } catch {
+      // Storage may be unavailable (e.g. iframe without storage access).
+      // Still allow in-memory session.
+    }
     setToken(newToken);
     setUser(newUser);
+    console.log("[AuthContext.login] setUser called");
     scheduleExpiryLogout(newToken);
-    console.log("[Auth] login complete, user set:", newUser.email);
   };
 
   const updateUser = (updatedUser: AuthUser) => {

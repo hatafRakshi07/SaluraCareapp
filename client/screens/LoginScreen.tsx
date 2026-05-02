@@ -9,38 +9,43 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useAuth } from "../context/AuthContext";
 import { loginUser } from "../lib/auth";
 import { Spacing, BorderRadius } from "../constants/theme";
 import { useTheme } from "../hooks/useTheme";
+import type { RootStackParamList } from "../navigation/types";
 
-interface Props {
-  onGoToRegister: () => void;
-}
-
-export default function LoginScreen({ onGoToRegister }: Props) {
+export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const { login } = useAuth();
+  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   const handleLogin = async () => {
+    setError("");
     if (!email.trim() || !password.trim()) {
-      Alert.alert("Missing fields", "Please enter your email and password.");
+      setError("Please enter your email and password.");
       return;
     }
     setLoading(true);
     try {
+      console.log("[Login] calling loginUser...");
       const { token, user } = await loginUser(email.trim().toLowerCase(), password);
+      console.log("[Login] loginUser ok, user=", user?.email);
       await login(token, user);
+      console.log("[Login] login() complete");
     } catch (err: any) {
-      Alert.alert("Login failed", err.message || "Please try again.");
+      console.log("[Login] error:", err?.message);
+      setError(err.message || "Login failed. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -68,6 +73,12 @@ export default function LoginScreen({ onGoToRegister }: Props) {
           <Text style={[styles.title, { color: theme.text }]}>Welcome back</Text>
           <Text style={[styles.subtitle, { color: theme.textSecondary }]}>Sign in to your account</Text>
 
+          {error.length > 0 ? (
+            <View style={[styles.errorBox, { backgroundColor: theme.error + "18", borderColor: theme.error }]}>
+              <Text style={[styles.errorText, { color: theme.error }]}>{error}</Text>
+            </View>
+          ) : null}
+
           <View style={styles.form}>
             <View style={styles.fieldGroup}>
               <Text style={[styles.label, { color: theme.textSecondary }]}>Email</Text>
@@ -77,7 +88,7 @@ export default function LoginScreen({ onGoToRegister }: Props) {
                 placeholder="you@example.com"
                 placeholderTextColor={theme.textSecondary}
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(t) => { setEmail(t); setError(""); }}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -92,14 +103,14 @@ export default function LoginScreen({ onGoToRegister }: Props) {
                 placeholder="Enter your password"
                 placeholderTextColor={theme.textSecondary}
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(t) => { setPassword(t); setError(""); }}
                 secureTextEntry
               />
             </View>
 
             <TouchableOpacity
               testID="button-login"
-              style={[styles.button, { backgroundColor: theme.primary }]}
+              style={[styles.button, { backgroundColor: theme.primary }, loading && styles.buttonDisabled]}
               onPress={handleLogin}
               disabled={loading}
             >
@@ -114,7 +125,7 @@ export default function LoginScreen({ onGoToRegister }: Props) {
 
         <View style={styles.footer}>
           <Text style={[styles.footerText, { color: theme.textSecondary }]}>Don't have an account? </Text>
-          <TouchableOpacity testID="button-go-register" onPress={onGoToRegister}>
+          <TouchableOpacity testID="button-go-register" onPress={() => navigation.navigate("Register")}>
             <Text style={[styles.link, { color: theme.primary }]}>Create one</Text>
           </TouchableOpacity>
         </View>
@@ -145,7 +156,14 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg,
   },
   title: { fontSize: 22, fontWeight: "700", marginBottom: 4 },
-  subtitle: { fontSize: 14, marginBottom: Spacing.xl },
+  subtitle: { fontSize: 14, marginBottom: Spacing.lg },
+  errorBox: {
+    borderWidth: 1,
+    borderRadius: BorderRadius.md,
+    padding: Spacing.md,
+    marginBottom: Spacing.md,
+  },
+  errorText: { fontSize: 14, fontWeight: "500" },
   form: { gap: Spacing.md },
   fieldGroup: { gap: 6 },
   label: { fontSize: 13, fontWeight: "500" },
@@ -163,6 +181,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: Spacing.sm,
   },
+  buttonDisabled: { opacity: 0.6 },
   buttonText: { color: "#fff", fontSize: 16, fontWeight: "600" },
   footer: { flexDirection: "row", justifyContent: "center", alignItems: "center" },
   footerText: { fontSize: 14 },
