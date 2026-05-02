@@ -1,0 +1,178 @@
+Build a **Third-Party Registration Web App** for a healthcare platform (SaluraCare) that allows external providers to register and automatically sync with the main app.
+
+---
+
+## 🎯 OBJECTIVE
+
+Create a separate **web portal** where third-party users can register as:
+
+* Nurses
+* Caretakers
+* Physiotherapists
+* Lab Partners
+* Pharmacy Vendors
+
+Once approved, their data should automatically appear inside the **main SaluraCare app (Services, Lab Test, Pharmacy sections).**
+
+---
+
+## 🧑‍⚕️ USER ROLES
+
+Provide role selection during registration:
+
+* Home Nurse
+* Caretaker
+* Physiotherapist
+* Lab Provider
+* Pharmacy
+
+---
+
+## 📝 REGISTRATION FORM
+
+Fields:
+
+* Full Name
+* Email + Phone (OTP verification)
+* Password (secure)
+* Role (dropdown)
+* Experience (years)
+* Qualification
+* Address + City
+* Profile Photo Upload
+* ID Proof Upload (Aadhar / License)
+* Availability (Available / Not Available)
+* Pricing (per hour / per service)
+
+---
+
+## 🔐 AUTHENTICATION SYSTEM
+
+* JWT-based login/signup
+* OTP verification for phone/email
+* Password hashing
+* Role-based access control
+
+---
+
+## 📊 DASHBOARD (FOR REGISTERED USERS)
+
+After login, each provider gets a dashboard:
+
+* Profile (edit/update details)
+* Booking Requests (Accept / Reject)
+* Earnings (basic view)
+* Availability toggle
+* Upload reports (for lab)
+* Manage medicines (for pharmacy)
+
+---
+
+## 🔗 MAIN APP INTEGRATION (VERY IMPORTANT)
+
+* Use a **shared real-time database** (Firebase / Supabase / MongoDB Atlas)
+
+* When a provider registers:
+
+  * Data is stored in database collection: `providers`
+  * Status = "pending approval"
+
+* Admin approval system:
+
+  * Admin panel to approve/reject providers
+
+* Once approved:
+
+  * Provider automatically appears in:
+
+    * Services (Nurse / Caretaker / Physio)
+    * Lab Test section
+    * Pharmacy section
+
+* Real-time sync:
+
+  * Any update (availability, pricing) reflects instantly in main app
+
+---
+
+## 🧠 DATABASE STRUCTURE
+
+Collections / Tables:
+
+* users
+* providers
+* bookings
+* lab_tests
+* pharmacy_orders
+* reviews
+
+Provider schema:
+
+* id
+* name
+* role
+* experience
+* rating
+* availability
+* price
+* documents
+* status (pending/approved/rejected)
+
+---
+
+## 🎨 UI DESIGN
+
+* Clean, modern healthcare UI
+* Light theme (default)
+* Soft cards, rounded corners
+* Simple step-based registration form
+* Dashboard with sidebar navigation
+
+---
+
+## ⚙️ TECH STACK
+
+Frontend:
+
+* React / Next.js
+
+Backend:
+
+* Node.js + Express
+
+Database:
+
+* Firebase / MongoDB / Supabase
+
+Storage:
+
+* Cloudinary / Firebase Storage (for images & documents)
+
+---
+
+## 🔄 REAL-TIME FEATURES
+
+* Use Firebase Realtime DB / Firestore OR WebSockets
+* Instant updates in main app when:
+
+  * New provider approved
+  * Availability changes
+  * Booking updates
+
+---
+
+## 🔔 EXTRA FEATURES
+
+* Email notification on approval/rejection
+* Admin panel (basic)
+* Rating & reviews system
+* Search & filter providers
+
+---
+
+## ✅ FINAL RESULT
+
+* Separate third-party registration web app
+* Fully connected to main SaluraCare app
+* Real-time data sync
+* Scalable and production-ready system
