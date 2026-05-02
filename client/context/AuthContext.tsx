@@ -20,6 +20,32 @@ import {
   type AuthUser,
 } from "../lib/auth";
 
+// ─── External store: survives React context boundaries ────────────────────────
+type AuthState = { user: AuthUser | null; token: string | null; isLoading: boolean };
+type Listener = (state: AuthState) => void;
+
+let _state: AuthState = { user: null, token: null, isLoading: true };
+const _listeners = new Set<Listener>();
+
+function getState(): AuthState { return _state; }
+
+function setState(next: Partial<AuthState>) {
+  _state = { ..._state, ...next };
+  _listeners.forEach(l => l(_state));
+}
+
+function subscribe(l: Listener): () => void {
+  _listeners.add(l);
+  return () => _listeners.delete(l);
+}
+
+function useAuthStore(): AuthState {
+  const [s, setS] = useState<AuthState>(getState);
+  useEffect(() => subscribe(setS), []);
+  return s;
+}
+
+// ─── Context (for backwards compat / function access only) ───────────────────
 interface AuthContextType {
   user: AuthUser | null;
   token: string | null;
@@ -33,12 +59,11 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
+  const store = useAuthStore();
   const tokenRef = useRef<string | null>(null);
   const expiryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Track init so effects only run once
+  const initializedRef = useRef(false);
 
   const clearExpiryTimer = () => {
     if (expiryTimerRef.current) {
@@ -51,8 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     clearExpiryTimer();
     await clearAuth();
     tokenRef.current = null;
-    setToken(null);
-    setUser(null);
+    setState({ token: null, user: null, isLoading: false });
   };
 
   const scheduleExpiryLogout = (tok: string) => {
@@ -68,22 +92,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const login = async (newToken: string, newUser: AuthUser) => {
-    console.log("[AuthContext.login] called, user=", newUser?.email);
     tokenRef.current = newToken;
     try {
       await storeAuth(newToken, newUser);
     } catch {
       // Storage may be unavailable (e.g. iframe without storage access).
-      // Still allow in-memory session.
     }
-    setToken(newToken);
-    setUser(newUser);
-    console.log("[AuthContext.login] setUser called");
+    setState({ token: newToken, user: newUser, isLoading: false });
     scheduleExpiryLogout(newToken);
   };
 
   const updateUser = (updatedUser: AuthUser) => {
-    setUser(updatedUser);
+    setState({ user: updatedUser });
     const tok = tokenRef.current;
     if (tok) storeAuth(tok, updatedUser).catch(() => {});
   };
@@ -95,7 +115,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     try {
       const freshUser = await fetchCurrentUser();
-      setUser(freshUser);
+      setState({ user: freshUser });
       await storeAuth(tok, freshUser);
     } catch (err: any) {
       const msg = String(err?.message ?? "");
@@ -116,6 +136,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
+    if (initializedRef.current) return;
+    initializedRef.current = true;
     (async () => {
       try {
         const storedToken = await getStoredToken();
@@ -123,10 +145,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           const storedUser = await getStoredUser();
           if (storedUser) {
             tokenRef.current = storedToken;
-            setToken(storedToken);
-            setUser(storedUser);
+            setState({ token: storedToken, user: storedUser, isLoading: false });
             scheduleExpiryLogout(storedToken);
-            setIsLoading(false);
             verifyAndRefresh(storedToken);
             return;
           }
@@ -134,7 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } catch {
         // ignore storage errors
       }
-      setIsLoading(false);
+      setState({ isLoading: false });
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -144,8 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearExpiryTimer();
       clearAuth().catch(() => {});
       tokenRef.current = null;
-      setToken(null);
-      setUser(null);
+      setState({ token: null, user: null, isLoading: false });
     });
     return () => clearUnauthorizedHandler();
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -163,7 +182,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, token, isLoading, login, logout, updateUser, refreshUser }}>
+    <AuthContext.Provider value={{
+      user: store.user,
+      token: store.token,
+      isLoading: store.isLoading,
+      login,
+      logout,
+      updateUser,
+      refreshUser,
+    }}>
       {children}
     </AuthContext.Provider>
   );
