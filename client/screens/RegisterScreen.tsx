@@ -11,19 +11,19 @@ import {
   ScrollView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useAuth } from "../context/AuthContext";
-import { registerUser } from "../lib/auth";
+import { registerUser, storeAuth } from "../lib/auth";
 import { Spacing, BorderRadius } from "../constants/theme";
 import { useTheme } from "../hooks/useTheme";
-import type { RootStackParamList } from "../navigation/types";
 
-export default function RegisterScreen() {
+interface Props {
+  onNavigateToLogin: () => void;
+}
+
+export default function RegisterScreen({ onNavigateToLogin }: Props) {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const { login } = useAuth();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -42,14 +42,20 @@ export default function RegisterScreen() {
       return;
     }
     setLoading(true);
+    let result: { token: string; user: any } | null = null;
     try {
-      const { token, user } = await registerUser(email.trim().toLowerCase(), name.trim(), password);
-      await login(token, user);
+      result = await registerUser(email.trim().toLowerCase(), name.trim(), password);
     } catch (err: any) {
       setError(err.message || "Registration failed. Please try again.");
-    } finally {
       setLoading(false);
+      return;
     }
+    await storeAuth(result.token, result.user);
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.location.reload();
+      return;
+    }
+    login(result.token, result.user);
   };
 
   return (
@@ -139,7 +145,7 @@ export default function RegisterScreen() {
 
         <View style={styles.footer}>
           <Text style={[styles.footerText, { color: theme.textSecondary }]}>Already have an account? </Text>
-          <TouchableOpacity testID="button-go-login" onPress={() => navigation.navigate("Login")}>
+          <TouchableOpacity testID="button-go-login" onPress={onNavigateToLogin}>
             <Text style={[styles.link, { color: theme.primary }]}>Sign in</Text>
           </TouchableOpacity>
         </View>

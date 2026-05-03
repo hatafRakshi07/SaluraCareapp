@@ -11,19 +11,19 @@ import {
   ScrollView,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useNavigation } from "@react-navigation/native";
-import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useAuth } from "../context/AuthContext";
-import { loginUser } from "../lib/auth";
+import { loginUser, storeAuth } from "../lib/auth";
 import { Spacing, BorderRadius } from "../constants/theme";
 import { useTheme } from "../hooks/useTheme";
-import type { RootStackParamList } from "../navigation/types";
 
-export default function LoginScreen() {
+interface Props {
+  onNavigateToRegister: () => void;
+}
+
+export default function LoginScreen({ onNavigateToRegister }: Props) {
   const insets = useSafeAreaInsets();
   const { theme } = useTheme();
   const { login } = useAuth();
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -37,18 +37,24 @@ export default function LoginScreen() {
       return;
     }
     setLoading(true);
+    let result: { token: string; user: any } | null = null;
     try {
-      console.log("[Login] calling loginUser...");
-      const { token, user } = await loginUser(email.trim().toLowerCase(), password);
-      console.log("[Login] loginUser ok, user=", user?.email);
-      await login(token, user);
-      console.log("[Login] login() complete");
+      result = await loginUser(email.trim().toLowerCase(), password);
     } catch (err: any) {
-      console.log("[Login] error:", err?.message);
       setError(err.message || "Login failed. Please try again.");
-    } finally {
       setLoading(false);
+      return;
     }
+    // Store credentials first (sessionStorage on web — synchronous, no hang)
+    await storeAuth(result.token, result.user);
+    // On web: reload the page so React re-initialises from scratch with the
+    // stored token, bypassing React Native Web's DOM reconciliation issues.
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.location.reload();
+      return;
+    }
+    // On native: update auth state directly (works fine in Expo Go)
+    login(result.token, result.user);
   };
 
   return (
@@ -125,7 +131,7 @@ export default function LoginScreen() {
 
         <View style={styles.footer}>
           <Text style={[styles.footerText, { color: theme.textSecondary }]}>Don't have an account? </Text>
-          <TouchableOpacity testID="button-go-register" onPress={() => navigation.navigate("Register")}>
+          <TouchableOpacity testID="button-go-register" onPress={onNavigateToRegister}>
             <Text style={[styles.link, { color: theme.primary }]}>Create one</Text>
           </TouchableOpacity>
         </View>

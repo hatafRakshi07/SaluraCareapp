@@ -3,7 +3,7 @@ import React, {
   useContext,
   useEffect,
   useRef,
-  useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { AppState, type AppStateStatus } from "react-native";
@@ -40,9 +40,7 @@ function subscribe(l: Listener): () => void {
 }
 
 function useAuthStore(): AuthState {
-  const [s, setS] = useState<AuthState>(getState);
-  useEffect(() => subscribe(setS), []);
-  return s;
+  return useSyncExternalStore(subscribe, getState);
 }
 
 // ─── Context (for backwards compat / function access only) ───────────────────
@@ -50,7 +48,7 @@ interface AuthContextType {
   user: AuthUser | null;
   token: string | null;
   isLoading: boolean;
-  login: (token: string, user: AuthUser) => Promise<void>;
+  login: (token: string, user: AuthUser) => void;
   logout: () => Promise<void>;
   updateUser: (user: AuthUser) => void;
   refreshUser: () => Promise<void>;
@@ -91,13 +89,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     expiryTimerRef.current = setTimeout(logout, msUntilExpiry);
   };
 
-  const login = async (newToken: string, newUser: AuthUser) => {
+  const login = (newToken: string, newUser: AuthUser): void => {
     tokenRef.current = newToken;
-    try {
-      await storeAuth(newToken, newUser);
-    } catch {
-      // Storage may be unavailable (e.g. iframe without storage access).
-    }
+    // Fire-and-forget: storage is only for persistence across restarts.
+    // Do NOT await it — a hanging or slow storage must not block navigation.
+    storeAuth(newToken, newUser).catch(() => {});
     setState({ token: newToken, user: newUser, isLoading: false });
     scheduleExpiryLogout(newToken);
   };

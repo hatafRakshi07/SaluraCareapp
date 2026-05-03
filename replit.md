@@ -51,6 +51,16 @@ SaluraCare is a healthcare and emergency assistance mobile application built wit
 - **Card-based UI** with soft shadows
 - **Light & Dark mode** support
 
+## Authentication Architecture
+
+### Auth Flow (fixed)
+- **Login/Register screens** are rendered **outside** `NavigationContainer` as plain React components, avoiding React Navigation DOM lifecycle conflicts on React Native Web.
+- `App.tsx` → `AppNavigator` reads from `useAuthStore()` (useSyncExternalStore) and passes a `key` to `AppContent` that changes on auth state. `AppContent` conditionally renders: loading spinner → `AuthFlow` (login/register) → `AuthenticatedApp` (NavigationContainer + main tabs).
+- **Web login flow**: After successful login, token + user are written to `sessionStorage` (synchronous, no hang risk), then `window.location.reload()` is called. On reload, `getStoredToken()` finds the token in `sessionStorage` instantly and the app initialises directly into the authenticated state.
+- **Native login flow**: Standard `login()` state update — works correctly in Expo Go.
+- **Token persistence**: `storeAuth()` writes to both `sessionStorage` (web, synchronous) and `AsyncStorage` (all platforms, with 1500ms timeout to avoid hangs in iframe/Playwright environments).
+- `RootStackNavigator` only contains `Main` (MainTabNavigator) and `SOS` screens — no auth screens in the navigation tree.
+
 ## Recent Changes
 - Initial app creation with all core screens
 - Implemented 6-tab navigation structure: Home, For You, Lab Tests, Vaccination, Services, Emergency
@@ -60,6 +70,7 @@ SaluraCare is a healthcare and emergency assistance mobile application built wit
 - Added Emergency tab: animated SOS button, emergency contacts list, add/call/delete contacts
 - Services: Home Nurse, Caretaker, Physiotherapist only
 - Data stored in AsyncStorage / local state (MVP)
+- Fixed persistent login bug: auth screens moved outside NavigationContainer; web uses sessionStorage + page reload to bypass React Native Web DOM reconciliation issues
 
 ## Development Notes
 - The app uses local state for data persistence (MVP)
@@ -67,3 +78,4 @@ SaluraCare is a healthcare and emergency assistance mobile application built wit
 - Empty states and loading states handled throughout
 - Haptic feedback on key interactions
 - Animated press effects on all interactive cards
+- Demo credentials: demo@saluracare.com / Demo1234!
