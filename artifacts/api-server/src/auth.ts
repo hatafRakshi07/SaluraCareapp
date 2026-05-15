@@ -5,6 +5,17 @@ import bcrypt from "bcryptjs";
 const JWT_SECRET = process.env.JWT_SECRET || "saluracare-secret-key-2024";
 const JWT_EXPIRES = "30d";
 
+type UserPayload = { userId: string };
+type ProviderPayload = { providerId: string };
+
+function isUserPayload(p: unknown): p is UserPayload {
+  return typeof p === "object" && p !== null && typeof (p as Record<string, unknown>).userId === "string";
+}
+
+function isProviderPayload(p: unknown): p is ProviderPayload {
+  return typeof p === "object" && p !== null && typeof (p as Record<string, unknown>).providerId === "string";
+}
+
 export function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 10);
 }
@@ -14,18 +25,32 @@ export function comparePassword(password: string, hash: string): Promise<boolean
 }
 
 export function signToken(userId: string): string {
-  return jwt.sign({ userId }, JWT_SECRET, { expiresIn: JWT_EXPIRES as any });
+  return jwt.sign({ userId } satisfies UserPayload, JWT_SECRET, { expiresIn: JWT_EXPIRES });
 }
 
-export function verifyToken(token: string): { userId: string } | null {
+export function verifyToken(token: string): UserPayload | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as { userId: string };
+    const payload = jwt.verify(token, JWT_SECRET);
+    return isUserPayload(payload) ? payload : null;
   } catch {
     return null;
   }
 }
 
-export function requireAuth(req: Request, res: Response, next: NextFunction) {
+export function signProviderToken(providerId: string): string {
+  return jwt.sign({ providerId } satisfies ProviderPayload, JWT_SECRET, { expiresIn: JWT_EXPIRES });
+}
+
+export function verifyProviderToken(token: string): ProviderPayload | null {
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    return isProviderPayload(payload) ? payload : null;
+  } catch {
+    return null;
+  }
+}
+
+export function requireAuth(req: Request, res: Response, next: NextFunction): void {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith("Bearer ")) {
     res.status(401).json({ error: "Unauthorized" });
@@ -39,6 +64,6 @@ export function requireAuth(req: Request, res: Response, next: NextFunction) {
     return;
   }
 
-  (req as any).userId = payload.userId;
+  (req as Request & { userId: string }).userId = payload.userId;
   next();
 }
